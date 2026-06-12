@@ -2740,7 +2740,11 @@ func yaml_parser_scan_plain_scalar(parser *yaml_parser_t, token *yaml_token_t) b
 					// Do we need to fold line breaks?
 					if leading_break[0] == '\n' {
 						if len(trailing_breaks) == 0 {
-							s = append(s, ' ')
+							if parser.preserve_plain_multiline {
+								s = append(s, '\n')
+							} else {
+								s = append(s, ' ')
+							}
 						} else {
 							s = append(s, trailing_breaks...)
 						}

@@ -104,7 +104,7 @@ func UnmarshalLenient(in []byte, out interface{}) (err error) {
 // anchor references, such as composition files that merge anchors defined in
 // sibling documents.
 func UnmarshalStubAliases(in []byte, out interface{}) (err error) {
-	return unmarshalWithParser(in, out, false, false, true)
+	return unmarshalWithParser(in, out, false, false, true, true)
 }
 
 // A Decoder reads and decodes YAML values from an input stream.
@@ -172,19 +172,20 @@ func (n *Node) Decode(v interface{}) (err error) {
 }
 
 func unmarshal(in []byte, out interface{}, strict bool) (err error) {
-	return unmarshalWithParser(in, out, strict, false, false)
+	return unmarshalWithParser(in, out, strict, false, false, false)
 }
 
 func unmarshalLenient(in []byte, out interface{}, strict bool) (err error) {
-	return unmarshalWithParser(in, out, strict, true, false)
+	return unmarshalWithParser(in, out, strict, true, false, false)
 }
 
-func unmarshalWithParser(in []byte, out interface{}, strict, lenientAliases, stubAliases bool) (err error) {
+func unmarshalWithParser(in []byte, out interface{}, strict, lenientAliases, stubAliases, preservePlainMultiline bool) (err error) {
 	defer handleErr(&err)
 	d := newDecoder()
 	p := newParser(in)
 	p.lenientAliases = lenientAliases
 	p.stubAliases = stubAliases
+	p.parser.preserve_plain_multiline = preservePlainMultiline
 	defer p.destroy()
 	node := p.parse()
 	if node != nil {

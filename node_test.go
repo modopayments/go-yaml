@@ -2928,3 +2928,36 @@ func TestUnmarshalStubAliases(t *testing.T) {
 		t.Errorf("encoded output missing &defaults:\n%s", got2)
 	}
 }
+
+func TestUnmarshalStubAliasesPreservesMultilinePlainScalar(t *testing.T) {
+	// A plain scalar spanning multiple source lines must survive a
+	// UnmarshalStubAliases → re-encode round-trip without its line breaks
+	// being folded to spaces.
+	const src = "key:\n  cardIssuerCountry: .foo as $map |\n    .bar |\n    if . then \"a\" else \"b\" end\n  other: simple\n"
+
+	var node yaml.Node
+	if err := yaml.UnmarshalStubAliases([]byte(src), &node); err != nil {
+		t.Fatalf("UnmarshalStubAliases: %v", err)
+	}
+	var buf bytes.Buffer
+	enc := yaml.NewEncoder(&buf)
+	enc.SetIndent(2)
+	if err := enc.Encode(&node); err != nil {
+		t.Fatalf("Encode: %v", err)
+	}
+	out := buf.String()
+	t.Logf("output:\n%s", out)
+
+	if !strings.Contains(out, "|\n") {
+		t.Errorf("multiline plain scalar was folded to a single line:\n%s", out)
+	}
+	if !strings.Contains(out, ".foo as $map") {
+		t.Errorf("content .foo as $map missing from output")
+	}
+	if !strings.Contains(out, `"a"`) {
+		t.Errorf(`content "a" missing from output`)
+	}
+	if !strings.Contains(out, "other: simple") {
+		t.Errorf("single-line scalar 'other: simple' not preserved as plain scalar")
+	}
+}

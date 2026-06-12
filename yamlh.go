@@ -588,6 +588,8 @@ type yaml_parser_t struct {
 
 	newlines int // The number of line breaks since last non-break/non-blank character
 
+	preserve_plain_multiline bool // If true, plain scalar line-break folding (newline→space) is suppressed.
+
 	raw_buffer     []byte // The raw buffer.
 	raw_buffer_pos int    // The current position of the buffer.
 
