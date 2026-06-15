@@ -2961,3 +2961,121 @@ func TestUnmarshalStubAliasesPreservesMultilinePlainScalar(t *testing.T) {
 		t.Errorf("single-line scalar 'other: simple' not preserved as plain scalar")
 	}
 }
+
+// TestUnmarshalLenient_CrossFileAnchor verifies that an unresolved anchor
+// reference (defined in another file) is silently replaced with null instead
+// of producing an error.
+func TestUnmarshalLenient_CrossFileAnchor(t *testing.T) {
+	const src = "transform: *ext_anchor\nname: example\n"
+	var out map[string]interface{}
+	if err := yaml.UnmarshalLenient([]byte(src), &out); err != nil {
+		t.Fatalf("UnmarshalLenient: unexpected error: %v", err)
+	}
+	if out["transform"] != nil {
+		t.Errorf("transform = %v, want nil (unresolved anchor → null)", out["transform"])
+	}
+	if out["name"] != "example" {
+		t.Errorf("name = %v, want \"example\"", out["name"])
+	}
+}
+
+// TestUnmarshalLenient_InFileAnchorResolves verifies that in-file anchors are
+// still resolved normally (they are not treated as null).
+func TestUnmarshalLenient_InFileAnchorResolves(t *testing.T) {
+	const src = "defaults: &defaults\n  timeout: 30\nconfig: *defaults\n"
+	var out map[string]interface{}
+	if err := yaml.UnmarshalLenient([]byte(src), &out); err != nil {
+		t.Fatalf("UnmarshalLenient: %v", err)
+	}
+	cfg, ok := out["config"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("config = %v (%T), want map", out["config"], out["config"])
+	}
+	if cfg["timeout"] != 30 {
+		t.Errorf("config.timeout = %v, want 30", cfg["timeout"])
+	}
+}
+
+// TestUnmarshalLenient_MixedAnchors verifies that a document containing both
+// in-file and cross-file anchor references handles them independently:
+// in-file resolves normally, cross-file becomes null.
+func TestUnmarshalLenient_MixedAnchors(t *testing.T) {
+	const src = "local: &local\n  value: 42\nresolved: *local\nunresolved: *external\n"
+	var out map[string]interface{}
+	if err := yaml.UnmarshalLenient([]byte(src), &out); err != nil {
+		t.Fatalf("UnmarshalLenient: %v", err)
+	}
+	resolved, ok := out["resolved"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("resolved = %v (%T), want map", out["resolved"], out["resolved"])
+	}
+	if resolved["value"] != 42 {
+		t.Errorf("resolved.value = %v, want 42", resolved["value"])
+	}
+	if out["unresolved"] != nil {
+		t.Errorf("unresolved = %v, want nil (cross-file anchor → null)", out["unresolved"])
+	}
+}
+
+// TestUnmarshalLenient_NoAnchors verifies that plain YAML without any anchors
+// parses identically to Unmarshal.
+func TestUnmarshalLenient_NoAnchors(t *testing.T) {
+	const src = "key: value\nnested:\n  a: 1\n  b: true\n"
+	var lenient map[string]interface{}
+	if err := yaml.UnmarshalLenient([]byte(src), &lenient); err != nil {
+		t.Fatalf("UnmarshalLenient: %v", err)
+	}
+	if lenient["key"] != "value" {
+		t.Errorf("key = %v, want value", lenient["key"])
+	}
+	nested, ok := lenient["nested"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("nested = %T, want map", lenient["nested"])
+	}
+	if nested["a"] != 1 {
+		t.Errorf("nested.a = %v, want 1", nested["a"])
+	}
+}
+
+// TestUnmarshalLenient_MultipleUnresolved verifies that a document with
+// several cross-file anchor references all become null independently.
+func TestUnmarshalLenient_MultipleUnresolved(t *testing.T) {
+	const src = "a: *anchor1\nb: *anchor2\nc: plain\n"
+	var out map[string]interface{}
+	if err := yaml.UnmarshalLenient([]byte(src), &out); err != nil {
+		t.Fatalf("UnmarshalLenient: %v", err)
+	}
+	if out["a"] != nil {
+		t.Errorf("a = %v, want nil", out["a"])
+	}
+	if out["b"] != nil {
+		t.Errorf("b = %v, want nil", out["b"])
+	}
+	if out["c"] != "plain" {
+		t.Errorf("c = %v, want plain", out["c"])
+	}
+}
+
+// TestUnmarshalLenient_IntoNode verifies that UnmarshalLenient works with a
+// *yaml.Node output (as used by composition-lsp), returning a null scalar
+// node for unresolved anchors rather than an AliasNode.
+func TestUnmarshalLenient_IntoNode(t *testing.T) {
+	const src = "transform: *ext_anchor\n"
+	var node yaml.Node
+	if err := yaml.UnmarshalLenient([]byte(src), &node); err != nil {
+		t.Fatalf("UnmarshalLenient into *yaml.Node: %v", err)
+	}
+	// node is a DocumentNode; content[0] is the mapping.
+	if node.Kind != yaml.DocumentNode || len(node.Content) == 0 {
+		t.Fatalf("unexpected node kind %v", node.Kind)
+	}
+	root := node.Content[0]
+	if root.Kind != yaml.MappingNode || len(root.Content) < 2 {
+		t.Fatalf("unexpected root kind %v", root.Kind)
+	}
+	// root.Content[0] = key "transform", root.Content[1] = value (null scalar).
+	val := root.Content[1]
+	if val.Kind != yaml.ScalarNode || val.Tag != "!!null" {
+		t.Errorf("value kind=%v tag=%q, want ScalarNode !!null", val.Kind, val.Tag)
+	}
+}
