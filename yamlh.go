@@ -589,6 +589,7 @@ type yaml_parser_t struct {
 	newlines int // The number of line breaks since last non-break/non-blank character
 
 	preserve_plain_multiline bool // If true, plain scalar line-break folding (newline→space) is suppressed.
+	scan_folded_as_literal   bool // If true, folded block scalars are scanned as literal (newlines preserved).
 
 	raw_buffer     []byte // The raw buffer.
 	raw_buffer_pos int    // The current position of the buffer.
@@ -746,7 +747,8 @@ type yaml_emitter_t struct {
 
 	indent int // The current indentation level.
 
-	compact_sequence_indent bool // Is '- ' is considered part of the indentation for sequence elements?
+	compact_sequence_indent  bool // Is '- ' is considered part of the indentation for sequence elements?
+	assume_folded_as_literal bool // If true, folded block scalars are emitted as literal (newlines not folded).
 
 	flow_level int // The current flow level.
 

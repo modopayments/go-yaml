@@ -129,6 +129,26 @@ func (dec *Decoder) KnownFields(enable bool) {
 	dec.knownFields = enable
 }
 
+// SetScanBlockScalarAsLiteral makes the decoder treat folded block scalars (>/->) as
+// literal, preserving internal newlines in node.Value rather than folding them to spaces.
+// Use together with SetAssumeBlockAsLiteral on the encoder for a stable round-trip.
+func (dec *Decoder) SetScanBlockScalarAsLiteral(v bool) {
+	yaml_parser_set_scan_folded_as_literal(&dec.parser.parser, v)
+}
+
+// SetStubAliases makes the decoder keep every alias as an unresolved AliasNode
+// (Alias field is nil, Value holds the anchor name) — the same behaviour as
+// UnmarshalStubAliases. Use with *yaml.Node output only.
+func (dec *Decoder) SetStubAliases(v bool) {
+	dec.parser.stubAliases = v
+}
+
+// SetPreservePlainMultiline prevents the decoder from folding newlines in
+// multi-line plain scalars into spaces.
+func (dec *Decoder) SetPreservePlainMultiline(v bool) {
+	dec.parser.parser.preserve_plain_multiline = v
+}
+
 // Decode reads the next YAML-encoded value from its input
 // and stores it in the value pointed to by v.
 //
@@ -314,6 +334,20 @@ func (e *Encoder) CompactSeqIndent() {
 // DefaultSeqIndent makes it so that '- ' is not considered part of the indentation.
 func (e *Encoder) DefaultSeqIndent() {
 	e.encoder.emitter.compact_sequence_indent = false
+}
+
+// SetDropMergeTag suppresses the explicit !!merge tag on merge keys (<<).
+// The tag is implicit for << values and redundant in almost all YAML files.
+func (e *Encoder) SetDropMergeTag(v bool) {
+	e.encoder.optDropMergeTag = v
+}
+
+// SetAssumeBlockAsLiteral makes the encoder treat folded block scalars (>/->) as
+// if they were literal (|/|-), preserving internal newlines rather than folding
+// them to spaces. Use together with SetScanBlockScalarAsLiteral on the decoder
+// for a stable round-trip.
+func (e *Encoder) SetAssumeBlockAsLiteral(v bool) {
+	yaml_emitter_set_assume_folded_as_literal(&e.encoder.emitter, v)
 }
 
 // Close closes the encoder by writing any remaining data.

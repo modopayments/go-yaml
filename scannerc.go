@@ -2318,7 +2318,8 @@ func yaml_parser_scan_block_scalar(parser *yaml_parser_t, token *yaml_token_t, l
 		trailing_blank = is_blank(parser.buffer, parser.buffer_pos)
 
 		// Check if we need to fold the leading line break.
-		if !literal && !leading_blank && !trailing_blank && len(leading_break) > 0 && leading_break[0] == '\n' {
+		scan_as_literal := parser.scan_folded_as_literal || literal
+		if !scan_as_literal && !leading_blank && !trailing_blank && len(leading_break) > 0 && leading_break[0] == '\n' {
 			// Do we need to join the lines by space?
 			if len(trailing_breaks) == 0 {
 				s = append(s, ' ')

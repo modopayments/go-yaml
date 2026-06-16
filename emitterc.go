@@ -1981,7 +1981,7 @@ func yaml_emitter_write_folded_scalar(emitter *yaml_emitter_t, value []byte) boo
 				for is_break(value, k) {
 					k += width(value[k])
 				}
-				if !is_blankz(value, k) {
+				if !is_blankz(value, k) && !emitter.assume_folded_as_literal {
 					if !put_break(emitter) {
 						return false
 					}

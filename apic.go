@@ -187,6 +187,18 @@ func yaml_emitter_set_break(emitter *yaml_emitter_t, line_break yaml_break_t) {
 	emitter.line_break = line_break
 }
 
+// Set assume_folded_as_literal: when true, folded block scalars are emitted
+// with literal style (newlines preserved rather than folded to spaces).
+func yaml_emitter_set_assume_folded_as_literal(emitter *yaml_emitter_t, v bool) {
+	emitter.assume_folded_as_literal = v
+}
+
+// Set scan_folded_as_literal on the parser: when true, folded block scalars
+// are scanned as if they were literal (newlines preserved in node.Value).
+func yaml_parser_set_scan_folded_as_literal(parser *yaml_parser_t, v bool) {
+	parser.scan_folded_as_literal = v
+}
+
 ///*
 // * Destroy a token object.
 // */
