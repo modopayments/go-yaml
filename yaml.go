@@ -484,12 +484,25 @@ type Node struct {
 	// These fields are not respected when encoding the node.
 	Line   int
 	Column int
+
+	// EndLine and EndColumn hold the position just past a scalar or alias,
+	// before any line comment. A block scalar ends at the start of the line
+	// after its body, trailing blank lines included.
+	EndLine   int
+	EndColumn int
+
+	// ValueLine and ValueColumn hold the position of a scalar's or alias's
+	// own token, after any tag and anchor: the quote, the first plain
+	// character, the block scalar indicator, or the '*'.
+	ValueLine   int
+	ValueColumn int
 }
 
 // IsZero returns whether the node has all of its fields unset.
 func (n *Node) IsZero() bool {
 	return n.Kind == 0 && n.Style == 0 && n.Tag == "" && n.Value == "" && n.Anchor == "" && n.Alias == nil && n.Content == nil &&
-		n.HeadComment == "" && n.LineComment == "" && n.FootComment == "" && n.Line == 0 && n.Column == 0
+		n.HeadComment == "" && n.LineComment == "" && n.FootComment == "" && n.Line == 0 && n.Column == 0 &&
+		n.EndLine == 0 && n.EndColumn == 0 && n.ValueLine == 0 && n.ValueColumn == 0
 }
 
 // LongTag returns the long form of the tag that indicates the data type for

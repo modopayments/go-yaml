@@ -483,6 +483,7 @@ func yaml_parser_parse_node(parser *yaml_parser_t, event *yaml_event_t, block, i
 			typ:        yaml_ALIAS_EVENT,
 			start_mark: token.start_mark,
 			end_mark:   token.end_mark,
+			value_mark: token.start_mark,
 			anchor:     token.value,
 		}
 		yaml_parser_set_event_comments(parser, event)
@@ -592,6 +593,7 @@ func yaml_parser_parse_node(parser *yaml_parser_t, event *yaml_event_t, block, i
 			typ:             yaml_SCALAR_EVENT,
 			start_mark:      start_mark,
 			end_mark:        end_mark,
+			value_mark:      token.start_mark,
 			anchor:          anchor,
 			tag:             tag,
 			value:           token.value,
@@ -678,6 +680,7 @@ func yaml_parser_parse_node(parser *yaml_parser_t, event *yaml_event_t, block, i
 			typ:             yaml_SCALAR_EVENT,
 			start_mark:      start_mark,
 			end_mark:        end_mark,
+			value_mark:      end_mark,
 			anchor:          anchor,
 			tag:             tag,
 			implicit:        implicit,
@@ -1176,6 +1179,7 @@ func yaml_parser_process_empty_scalar(parser *yaml_parser_t, event *yaml_event_t
 		typ:        yaml_SCALAR_EVENT,
 		start_mark: mark,
 		end_mark:   mark,
+		value_mark: mark,
 		value:      nil, // Empty
 		implicit:   true,
 		style:      yaml_style_t(yaml_PLAIN_SCALAR_STYLE),

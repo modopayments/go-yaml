@@ -2555,6 +2555,15 @@ var nodeTests = []struct {
 	},
 }
 
+// clearEndAndValuePositions zeroes the end and value marks, which nodeTests
+// literals don't spell out; TestNodePositions covers them.
+func clearEndAndValuePositions(n *yaml.Node) {
+	n.EndLine, n.EndColumn, n.ValueLine, n.ValueColumn = 0, 0, 0, 0
+	for _, c := range n.Content {
+		clearEndAndValuePositions(c)
+	}
+}
+
 func (s *S) TestNodeRoundtrip(c *C) {
 	defer os.Setenv("TZ", os.Getenv("TZ"))
 	os.Setenv("TZ", "UTC")
@@ -2589,6 +2598,7 @@ func (s *S) TestNodeRoundtrip(c *C) {
 				fprintComments(&buf, &node, "    ")
 				c.Logf("  obtained comments:\n%s", buf.Bytes())
 			}
+			clearEndAndValuePositions(&node)
 			c.Assert(&node, DeepEquals, &item.node)
 		}
 		if encode {
@@ -3077,5 +3087,55 @@ func TestUnmarshalLenient_IntoNode(t *testing.T) {
 	val := root.Content[1]
 	if val.Kind != yaml.ScalarNode || val.Tag != "!!null" {
 		t.Errorf("value kind=%v tag=%q, want ScalarNode !!null", val.Kind, val.Tag)
+	}
+}
+
+// TestNodePositions checks Line/Column, ValueLine/ValueColumn and
+// EndLine/EndColumn of every scalar and alias, in document order, formatted
+// as "value start value end".
+func TestNodePositions(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		want []string
+	}{
+		{"plain with comment", "a: b # c\n", []string{`"a" 1:1 1:1 1:2`, `"b" 1:4 1:4 1:5`}},
+		{"double quoted", "a: \"x y\" # c\n", []string{`"a" 1:1 1:1 1:2`, `"x y" 1:4 1:4 1:9`}},
+		{"single quoted multi-line", "a: 'x\n  y'\n", []string{`"a" 1:1 1:1 1:2`, `"x y" 1:4 1:4 2:5`}},
+		{"literal with trailing blanks", "a: |\n  x\n\n\nb: 1\n", []string{`"a" 1:1 1:1 1:2`, `"x\n" 1:4 1:4 5:1`, `"b" 5:1 5:1 5:2`, `"1" 5:4 5:4 5:5`}},
+		{"tag then anchor", "a: !t &x |- # n\n  x\n", []string{`"a" 1:1 1:1 1:2`, `"x" 1:4 1:10 3:1`}},
+		{"anchor then tag", "a: &x !t >\n  x\n", []string{`"a" 1:1 1:1 1:2`, `"x\n" 1:4 1:10 3:1`}},
+		{"properties on previous line", "a: !t\n  |\n  x\n", []string{`"a" 1:1 1:1 1:2`, `"x\n" 1:4 2:3 4:1`}},
+		{"sequence block scalar", "- |\n  x\n- y\n", []string{`"x\n" 1:3 1:3 3:1`, `"y" 3:3 3:3 3:4`}},
+		{"crlf", "a: |\r\n  x\r\n\r\nb: 1\r\n", []string{`"a" 1:1 1:1 1:2`, `"x\n" 1:4 1:4 4:1`, `"b" 4:1 4:1 4:2`, `"1" 4:4 4:4 4:5`}},
+		{"non-ascii columns in runes", "é: ü # c\n", []string{`"é" 1:1 1:1 1:2`, `"ü" 1:4 1:4 1:5`}},
+		{"block at eof without newline", "a: |\n  x", []string{`"a" 1:1 1:1 1:2`, `"x" 1:4 1:4 2:4`}},
+		{"plain at eof without newline", "a: x", []string{`"a" 1:1 1:1 1:2`, `"x" 1:4 1:4 1:5`}},
+		{"empty with tag", "a: !t\nb: 1\n", []string{`"a" 1:1 1:1 1:2`, `"" 1:4 1:6 1:6`, `"b" 2:1 2:1 2:2`, `"1" 2:4 2:4 2:5`}},
+		{"empty", "a:\n", []string{`"a" 1:1 1:1 1:2`, `"" 1:3 1:3 1:3`}},
+		{"anchor and alias", "x: &b 1\ny: *b # c\n", []string{`"x" 1:1 1:1 1:2`, `"1" 1:4 1:7 1:8`, `"y" 2:1 2:1 2:2`, `"b" 2:4 2:4 2:6`}},
+		{"unresolved alias", "z: *m\n", []string{`"z" 1:1 1:1 1:2`, `"" 1:4 1:4 1:6`}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var root yaml.Node
+			if err := yaml.UnmarshalLenient([]byte(tt.in), &root); err != nil {
+				t.Fatal(err)
+			}
+			var got []string
+			var walk func(*yaml.Node)
+			walk = func(n *yaml.Node) {
+				if n.Kind == yaml.ScalarNode || n.Kind == yaml.AliasNode {
+					got = append(got, fmt.Sprintf("%q %d:%d %d:%d %d:%d", n.Value, n.Line, n.Column, n.ValueLine, n.ValueColumn, n.EndLine, n.EndColumn))
+				}
+				for _, c := range n.Content {
+					walk(c)
+				}
+			}
+			walk(&root)
+			if strings.Join(got, "\n") != strings.Join(tt.want, "\n") {
+				t.Errorf("got\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(tt.want, "\n"))
+			}
+		})
 	}
 }

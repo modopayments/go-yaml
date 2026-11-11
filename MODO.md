@@ -1,6 +1,6 @@
 # go-yaml — Modo fork
 
-Modo's fork of [go-yaml/go-yaml](https://github.com/go-yaml/go-yaml) (v3), extended with two functions required for lossless round-tripping of composition files that use YAML anchors defined across multiple files.
+Modo's fork of [go-yaml/go-yaml](https://github.com/go-yaml/go-yaml) (v3), extended with two functions and node position fields required for lossless round-tripping of composition files that use YAML anchors defined across multiple files.
 
 Module path: `github.com/modopayments/go-yaml/v3`
 Branch: `lenient-aliases` (5 commits ahead of upstream v3)
@@ -40,6 +40,21 @@ The resulting node tree can be re-encoded without modification: the encoder emit
 **Important limitation:** When `out` is a struct or map (not `*yaml.Node`), alias-stubbed nodes decode as zero values for their keys with no error or warning. `UnmarshalStubAliases` is only useful for `*yaml.Node` round-trips — do not use it if you need to read values from aliased nodes.
 
 **Note on in-file anchors:** `UnmarshalStubAliases` also stubs in-file anchors (intentional, for round-trip consistency). If an alias references an anchor defined earlier in the same file and you need to read that value, use `Unmarshal` instead.
+
+### `Node` end and value positions
+
+```go
+EndLine, EndColumn     int // just past the scalar or alias, before any comment
+ValueLine, ValueColumn int // the scalar's or alias's own token, after any tag and anchor
+```
+
+Filled for scalar and alias nodes (including the null that `UnmarshalLenient` substitutes for an unresolved alias); zero for collections and when decoding textless. 1-based, columns in runes like `Line`/`Column`.
+
+- `Line`/`Column` is the first tag, anchor or indicator; `ValueLine`/`ValueColumn` is the `|`/`>`, the quote, the first plain character or the `*`. They differ when properties precede the value, possibly on an earlier line.
+- A block scalar ends at column 1 of the line after its body, trailing blank lines included. `EndColumn > 1` on a block scalar means the input ended without a final newline.
+- An empty scalar with properties (`a: !t`) has its value and end marks just after the last property.
+
+Not respected when encoding. `TestNodeRoundtrip` clears them before comparing; `TestNodePositions` covers them.
 
 ---
 

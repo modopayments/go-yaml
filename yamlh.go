@@ -294,6 +294,10 @@ type yaml_event_t struct {
 	// The start and end of the event.
 	start_mark, end_mark yaml_mark_t
 
+	// The start of the scalar or alias token, after any tag and anchor
+	// (for yaml_SCALAR_EVENT and yaml_ALIAS_EVENT).
+	value_mark yaml_mark_t
+
 	// The document encoding (for yaml_STREAM_START_EVENT).
 	encoding yaml_encoding_t
 
